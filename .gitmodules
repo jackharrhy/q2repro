@@ -4,3 +4,6 @@
 [submodule "q2proto"]
 	path = q2proto
 	url = https://github.com/res2k/q2proto.git
+[submodule "subprojects/rerelease-game"]
+	url = https://github.com/jackharrhy/rerelease-game.git
+	branch = notscared
