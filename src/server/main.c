@@ -1073,6 +1073,8 @@ static void SVC_DirectConnect(void)
         Com_EPrintf("failed to initialize connection context: %s\n", q2proto_error_string(err));
         return;
     }
+    Com_DPrintf("DEBUG: Initialized protocol context: protocol=%d, server_write_gamestate=%p\n",
+                newcl->q2proto_ctx.protocol, (void*)newcl->q2proto_ctx.server_write_gamestate);
 
     init_pmove_and_es_flags(newcl);
 
