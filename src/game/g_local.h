@@ -205,7 +205,8 @@ typedef enum {
     MOVETYPE_FLY,
     MOVETYPE_TOSS,          // gravity
     MOVETYPE_FLYMISSILE,    // extra size to monsters
-    MOVETYPE_BOUNCE
+    MOVETYPE_BOUNCE,
+    MOVETYPE_VEHICLE        //  func_vehicle
 } movetype_t;
 
 typedef struct {
