@@ -156,7 +156,7 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: q2pro-rr-macos-${{env.GITHUB_SHA_SHORT}}
+          name: q2pro-rr-macos-arm64-${{env.GITHUB_SHA_SHORT}}
           path: installdir/
 
   release:
@@ -210,6 +210,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cd artifacts/q2pro-rr-macos-*
-          tar czf ../../q2repro-macos-x86_64.tar.gz .
+          tar czf ../../q2repro-macos-arm64.tar.gz .
           cd ../..
-          gh release upload latest q2repro-macos-x86_64.tar.gz --clobber
+          gh release upload latest q2repro-macos-arm64.tar.gz --clobber
