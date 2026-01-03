@@ -187,29 +187,46 @@ jobs:
             gh release create latest -t "Latest Build (${{env.GITHUB_SHA_SHORT}})" -n "Latest build from notscared branch" --latest
           fi
 
-      - name: Upload Windows artifacts
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Package Windows artifacts
         run: |
+          mkdir -p package/q2repro/baseq2
           cd artifacts/q2pro-rr-windows-mingw-x86_64-*
-          zip -r ../../q2repro-windows-x86_64.zip .
+          cp usr/local/q2repro.exe ../../package/q2repro/
+          cp usr/local/q2reproded.exe ../../package/q2repro/
+          cp usr/local/baseq2/game_x64.dll ../../package/q2repro/baseq2/ 2>/dev/null || true
           cd ../..
-          gh release upload latest q2repro-windows-x86_64.zip --clobber
+          cd package
+          zip -r ../q2repro-windows-x86_64.zip q2repro
+          cd ..
 
-      - name: Upload Linux artifacts
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Package Linux artifacts
         run: |
+          mkdir -p package/q2repro/baseq2
           cd artifacts/q2pro-rr-linux-gcc-x86_64-*
-          tar czf ../../q2repro-linux-x86_64.tar.gz .
+          cp usr/local/q2repro ../../package/q2repro/
+          cp usr/local/q2reproded ../../package/q2repro/
+          cp usr/local/baseq2/game_x86_64.so ../../package/q2repro/baseq2/ 2>/dev/null || true
           cd ../..
-          gh release upload latest q2repro-linux-x86_64.tar.gz --clobber
+          cd package
+          tar czf ../q2repro-linux-x86_64.tar.gz q2repro
+          cd ..
 
-      - name: Upload macOS artifacts
+      - name: Package macOS artifacts
+        run: |
+          mkdir -p package/q2repro/baseq2
+          cd artifacts/q2pro-rr-macos-arm64-*
+          cp opt/homebrew/q2repro ../../package/q2repro/
+          cp opt/homebrew/q2reproded ../../package/q2repro/
+          cp opt/homebrew/baseq2/game_arm64.dylib ../../package/q2repro/baseq2/ 2>/dev/null || true
+          cd ../..
+          cd package
+          tar czf ../q2repro-macos-arm64.tar.gz q2repro
+          cd ..
+
+      - name: Upload release artifacts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cd artifacts/q2pro-rr-macos-*
-          tar czf ../../q2repro-macos-arm64.tar.gz .
-          cd ../..
+          gh release upload latest q2repro-windows-x86_64.zip --clobber
+          gh release upload latest q2repro-linux-x86_64.tar.gz --clobber
           gh release upload latest q2repro-macos-arm64.tar.gz --clobber
