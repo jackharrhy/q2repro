@@ -52,9 +52,6 @@ env:
 jobs:
   mingw:
     runs-on: ubuntu-24.04
-    strategy:
-      matrix:
-        arch: ["i686", "x86_64"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,7 +69,7 @@ jobs:
 
       - name: Build - meson setup
         run: |
-          meson setup --cross-file=.ci/${{ matrix.arch }}-w64-mingw32.txt \
+          meson setup --cross-file=.ci/x86_64-w64-mingw32.txt \
             ${{ env.MESON_ARGS }} ${{ env.MESON_ARGS_WIN }} builddir
 
       - name: Build info - meson configure
@@ -92,66 +89,11 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: q2pro-rr-windows-mingw-${{ matrix.arch }}-${{env.GITHUB_SHA_SHORT}}
-          path: installdir/
-
-  msvc:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        arch: ["x86", "x64"]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - uses: actions/cache@v4
-        with:
-          path: subprojects/packagecache
-          key: ${{ hashFiles('subprojects/*.wrap') }}
-
-      - uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: ${{ matrix.arch }}
-
-      - uses: ilammy/setup-nasm@v1
-
-      - name: Install dependencies
-        run: pip3 install --no-input meson ninja
-
-      - name: Build - meson setup
-        run: |
-          meson setup ${{ env.MESON_ARGS }} ${{ env.MESON_ARGS_WIN }} builddir
-
-      - name: Build info - meson configure
-        run: |
-          meson configure builddir
-
-      - name: Build - meson compile
-        run: |
-          meson compile -C builddir
-          meson install -C builddir --tags runtime --destdir ${{ github.workspace }}/installdir
-
-      - name: Setup variables
-        uses: actions/github-script@v7
-        with:
-          script: core.exportVariable('GITHUB_SHA_SHORT', context.sha.substring(0, 7))
-
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: q2pro-rr-windows-${{ matrix.arch }}-${{env.GITHUB_SHA_SHORT}}
+          name: q2pro-rr-windows-mingw-x86_64-${{env.GITHUB_SHA_SHORT}}
           path: installdir/
 
   linux:
     runs-on: ubuntu-24.04
-    strategy:
-      matrix:
-        include:
-          - cc: gcc
-            cxx: g++
-          - cc: clang
-            cxx: clang++
     steps:
       - uses: actions/checkout@v4
         with:
@@ -161,16 +103,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y meson libsdl2-dev libopenal-dev \
-          libpng-dev libjpeg-dev zlib1g-dev mesa-common-dev \
-          libcurl4-gnutls-dev libx11-dev libxi-dev \
-          libwayland-dev wayland-protocols libdecor-0-dev
+            libpng-dev libjpeg-dev zlib1g-dev mesa-common-dev \
+            libcurl4-gnutls-dev libx11-dev libxi-dev \
+            libwayland-dev wayland-protocols libdecor-0-dev
 
       - name: Build - meson setup
         run: |
           meson setup ${{ env.MESON_ARGS }} ${{ env.MESON_ARGS_LINUX }} builddir
-        env:
-          CC: ${{ matrix.cc }}
-          CXX: ${{ matrix.cxx }}
 
       - name: Build info - meson configure
         run: |
@@ -189,7 +128,7 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: q2pro-rr-linux-${{ matrix.cc }}-x86_64-${{env.GITHUB_SHA_SHORT}}
+          name: q2pro-rr-linux-gcc-x86_64-${{env.GITHUB_SHA_SHORT}}
           path: installdir/
 
   macos:
