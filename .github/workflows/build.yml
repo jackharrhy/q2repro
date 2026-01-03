@@ -2,9 +2,7 @@ name: build
 
 on:
   push:
-    branches: [rerelease-game, ci]
-  pull_request:
-    branches: [rerelease-game]
+    branches: [notscared]
   workflow_dispatch:
 
 env:
@@ -84,6 +82,18 @@ jobs:
       - name: Build - meson compile
         run: |
           meson compile -C builddir
+          meson install -C builddir --tags runtime --destdir ${{ github.workspace }}/installdir
+
+      - name: Setup variables
+        uses: actions/github-script@v7
+        with:
+          script: core.exportVariable('GITHUB_SHA_SHORT', context.sha.substring(0, 7))
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: q2pro-rr-windows-mingw-${{ matrix.arch }}-${{env.GITHUB_SHA_SHORT}}
+          path: installdir/
 
   msvc:
     runs-on: windows-latest
@@ -205,6 +215,18 @@ jobs:
       - name: Build - meson compile
         run: |
           meson compile -C builddir
+          meson install -C builddir --tags runtime --destdir ${{ github.workspace }}/installdir
+
+      - name: Setup variables
+        uses: actions/github-script@v7
+        with:
+          script: core.exportVariable('GITHUB_SHA_SHORT', context.sha.substring(0, 7))
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: q2pro-rr-macos-${{env.GITHUB_SHA_SHORT}}
+          path: installdir/
 
   freebsd:
     runs-on: ubuntu-24.04
@@ -227,3 +249,15 @@ jobs:
             meson setup ${{ env.MESON_ARGS }} ${{ env.MESON_ARGS_FREEBSD }} builddir
             meson configure builddir
             meson compile -C builddir
+            meson install -C builddir --tags runtime --destdir ${{ github.workspace }}/installdir
+
+      - name: Setup variables
+        uses: actions/github-script@v7
+        with:
+          script: core.exportVariable('GITHUB_SHA_SHORT', context.sha.substring(0, 7))
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: q2pro-rr-freebsd-${{env.GITHUB_SHA_SHORT}}
+          path: installdir/
