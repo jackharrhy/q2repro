@@ -141,9 +141,6 @@ static void write_gamestate(void)
 #if USE_ZLIB
     deflate_args = &sv_client->q2proto_deflate;
 #endif
-    Com_DPrintf("DEBUG: write_gamestate: protocol=%d, server_write_gamestate=%p, num_configstrings=%zu, num_spawnbaselines=%zu\n",
-                sv_client->q2proto_ctx.protocol, (void*)sv_client->q2proto_ctx.server_write_gamestate,
-                gamestate.num_configstrings, gamestate.num_spawnbaselines);
     int write_result;
     do {
         write_result = q2proto_server_write_gamestate(&sv_client->q2proto_ctx, deflate_args, (uintptr_t)&sv_client->io_data, &gamestate);
