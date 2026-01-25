@@ -634,7 +634,11 @@ void CL_PrepRefresh(void)
     
     cgame->TouchPics();
 
-    CL_Wheel_Precache();
+    // NOTE(jackharrhy): the wheel loads and fetches
+    // some graphics which casues a warning in the console
+    // its one of the only warnings loading images i'm running into
+    // so i'm just... not going to precache the images :)
+    // CL_Wheel_Precache();
 
     CL_LoadState(LOAD_CLIENTS);
     for (i = 0; i < MAX_CLIENTS; i++) {
