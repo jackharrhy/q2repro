@@ -35,14 +35,14 @@ BEGIN
     BEGIN
         BLOCK "040904B0"
         BEGIN
-            VALUE "Comments", "https://github.com/skullernet/q2pro"
-            VALUE "CompanyName", "skuller.net"
+            VALUE "Comments", "https://github.com/jackharrhy/q2repro"
+            VALUE "CompanyName", "notsca.red"
             VALUE "FileDescription", VER_FILEDESCRIPTION_STR
             VALUE "OriginalFilename", VER_ORIGINALFILENAME_STR
             VALUE "FileVersion", VERSION
-            VALUE "InternalName", "q2pro"
-            VALUE "LegalCopyright", "Copyright © 2023 skuller.net"
-            VALUE "ProductName", "Q2PRO"
+            VALUE "InternalName", "notscared"
+            VALUE "LegalCopyright", "Copyright © 2026 notsca.red"
+            VALUE "ProductName", "notscared"
             VALUE "ProductVersion", VERSION
         END
     END
