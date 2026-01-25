@@ -200,11 +200,10 @@ jobs:
           cp usr/local/q2reproded.exe ../../package/q2repro/
           cp usr/local/baseq2/game_x64.dll ../../package/q2repro/baseq2/ 2>/dev/null || true
           cd ../..
-          # Copy MinGW runtime DLLs
-          MINGW_BIN=$(x86_64-w64-mingw32-gcc -print-sysroot)/bin
-          cp "$MINGW_BIN/libgcc_s_seh-1.dll" package/q2repro/ 2>/dev/null || true
-          cp "$MINGW_BIN/libstdc++-6.dll" package/q2repro/ 2>/dev/null || true
-          cp "$MINGW_BIN/libwinpthread-1.dll" package/q2repro/ 2>/dev/null || true
+          # Copy MinGW runtime DLLs (use -print-file-name to find exact paths)
+          cp "$(x86_64-w64-mingw32-gcc -print-file-name=libgcc_s_seh-1.dll)" package/q2repro/
+          cp "$(x86_64-w64-mingw32-g++ -print-file-name=libstdc++-6.dll)" package/q2repro/
+          cp "$(x86_64-w64-mingw32-gcc -print-file-name=libwinpthread-1.dll)" package/q2repro/
           cd package
           zip -r ../q2repro-windows-x86_64.zip q2repro
           cd ..
