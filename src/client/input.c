@@ -243,6 +243,8 @@ static kbutton_t    in_strafe, in_speed, in_use, in_attack;
 static kbutton_t    in_up, in_down;
 // Kex stuff
 static kbutton_t    in_holster;
+// notscared
+static kbutton_t    in_zoom;
 
 static int          in_impulse;
 static bool         in_mlooking;
@@ -430,6 +432,10 @@ static void IN_MLookUp(void)
 
 static void IN_HolsterDown(void) { KeyDown(&in_holster); }
 static void IN_HolsterUp(void) { KeyUp(&in_holster); }
+// notscared
+static void IN_ZoomDown(void) { KeyDown(&in_zoom); }
+static void IN_ZoomUp(void) { KeyUp(&in_zoom); }
+
 static void IN_WheelDown(void) { CL_Wheel_Open(false); }
 static void IN_WheelUp(void) { CL_Wheel_Close(true); }
 static void IN_Wheel2Down(void) { CL_Wheel_Open(true); }
@@ -666,6 +672,9 @@ void CL_UpdateCmd(int msec)
         cl.cmd.buttons |= BUTTON_JUMP;
     if (in_down.state & 3)
         cl.cmd.buttons |= BUTTON_CROUCH;
+    // notscared
+    if (in_zoom.state & 3)
+        cl.cmd.buttons |= BUTTON_ZOOM;
 
     // allow mice to add to the move
     CL_MouseMove();
@@ -736,6 +745,9 @@ static const cmdreg_t c_input[] = {
     // Kex stuff
     { "+holster", IN_HolsterDown },
     { "-holster", IN_HolsterUp },
+    // notscared
+    { "+zoom", IN_ZoomDown },
+    { "-zoom", IN_ZoomUp },
     { "+wheel", IN_WheelDown },
     { "-wheel", IN_WheelUp },
     { "+wheel2", IN_Wheel2Down },
@@ -825,6 +837,9 @@ void CL_FinalizeCmd(void)
         cl.cmd.buttons |= BUTTON_JUMP;
     if (in_down.state & 3)
         cl.cmd.buttons |= BUTTON_CROUCH;
+    // notscared
+    if (in_zoom.state & 3)
+        cl.cmd.buttons |= BUTTON_ZOOM;
 
     if (cls.key_dest == KEY_GAME && Key_AnyKeyDown()) {
         cl.cmd.buttons |= BUTTON_ANY;
@@ -869,6 +884,7 @@ clear:
     in_attack.state &= ~2;
     in_use.state &= ~2;
     in_holster.state &= ~2;
+    in_zoom.state &= ~2;  // notscared
 
     KeyClear(&in_right);
     KeyClear(&in_left);
