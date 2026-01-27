@@ -158,8 +158,8 @@ option('variable-fps',
 
 option('vid-geometry',
   type: 'string',
-  value: '640x480',
-  description: 'Default window geometry')
+  value: '',
+  description: 'Default window geometry (empty = auto-size to 75% of screen)')
 
 option('vid-modelist',
   type: 'string',

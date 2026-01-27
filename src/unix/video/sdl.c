@@ -287,8 +287,19 @@ static bool init(void)
     SDL_SetEventFilter(my_event_filter, NULL);
 
     if (!VID_GetGeometry(&rc)) {
-        rc.x = SDL_WINDOWPOS_UNDEFINED;
-        rc.y = SDL_WINDOWPOS_UNDEFINED;
+        /* NOTE(notscared) Query display for sensible initial window size */
+        SDL_DisplayMode dm;
+        if (SDL_GetDesktopDisplayMode(0, &dm) == 0) {
+            /* Use 75% of screen dimensions */
+            rc.width = (dm.w * 3) / 4;
+            rc.height = (dm.h * 3) / 4;
+            /* Ensure minimum size */
+            if (rc.width < 640) rc.width = 640;
+            if (rc.height < 480) rc.height = 480;
+        }
+        /* Center the window */
+        rc.x = SDL_WINDOWPOS_CENTERED;
+        rc.y = SDL_WINDOWPOS_CENTERED;
     }
 
     if (!create_window_and_context(&rc)) {
@@ -314,6 +325,12 @@ static bool init(void)
         SDL_SetWindowIcon(sdl.window, icon);
         SDL_FreeSurface(icon);
     }
+
+    /* NOTE(notscared) Raise window to front, grab mouse immediately.
+     * The normal game loop (IN_Activate) will release if needed (menus, etc). */
+    SDL_RaiseWindow(sdl.window);
+    SDL_SetRelativeMouseMode(SDL_TRUE);
+    SDL_ShowCursor(SDL_DISABLE);
 
     cvar_t *vid_hwgamma = Cvar_Get("vid_hwgamma", "0", CVAR_REFRESH);
     if (vid_hwgamma->integer) {
@@ -555,7 +572,8 @@ static void grab_mouse(bool grab)
     SDL_SetWindowGrab(sdl.window, grab);
     SDL_SetRelativeMouseMode(grab && !(Key_GetDest() & KEY_MENU));
     SDL_GetRelativeMouseState(NULL, NULL);
-    SDL_ShowCursor(!(sdl.flags & QVF_FULLSCREEN));
+    /* NOTE(notscared) Hide cursor when grabbed, not just in fullscreen */
+    SDL_ShowCursor(!grab);
 }
 
 static bool probe(void)
