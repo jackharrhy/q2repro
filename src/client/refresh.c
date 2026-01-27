@@ -211,6 +211,13 @@ void VID_ToggleFullscreen(void)
     }
 }
 
+/* NOTE(notscared) Set window title with level name */
+void VID_SetTitle(const char *title)
+{
+    if (vid && vid->set_title)
+        vid->set_title(title);
+}
+
 /*
 ==========================================================================
 

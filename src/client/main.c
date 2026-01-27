@@ -768,6 +768,9 @@ void CL_Disconnect(error_type_t type)
     cls.state = ca_disconnected;
     cls.userinfo_modified = 0;
 
+    /* NOTE(notscared) Reset window title on disconnect */
+    VID_SetTitle(NULL);
+
     // start menu track, or stop music
     if (type == ERR_DROP || type == ERR_DISCONNECT) {
         OGG_Play();

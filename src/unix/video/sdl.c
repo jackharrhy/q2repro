@@ -576,6 +576,15 @@ static void grab_mouse(bool grab)
     SDL_ShowCursor(!grab);
 }
 
+/* NOTE(notscared) Dynamic window title showing level name */
+static void set_title(const char *title)
+{
+    if (title && *title)
+        SDL_SetWindowTitle(sdl.window, va("%s - %s", PRODUCT, title));
+    else
+        SDL_SetWindowTitle(sdl.window, PRODUCT);
+}
+
 static bool probe(void)
 {
     return true;
@@ -607,4 +616,6 @@ const vid_driver_t vid_sdl = {
     .grab_mouse = grab_mouse,
     .warp_mouse = warp_mouse,
     .get_mouse_motion = get_mouse_motion,
+
+    .set_title = set_title,
 };

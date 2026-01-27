@@ -334,6 +334,9 @@ static void set_active_state(void)
 
     IN_Activate();
 
+    /* NOTE(notscared) Update window title with level name */
+    VID_SetTitle(cl.configstrings[CS_NAME]);
+
     if (!cls.demo.playback) {
         EXEC_TRIGGER(cl_beginmapcmd);
         Cmd_ExecTrigger("#cl_enterlevel");

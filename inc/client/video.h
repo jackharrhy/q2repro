@@ -45,6 +45,8 @@ typedef struct {
     void (*grab_mouse)(bool grab);
     void (*warp_mouse)(int x, int y);
     bool (*get_mouse_motion)(int *dx, int *dy);
+
+    void (*set_title)(const char *title);
 } vid_driver_t;
 
 extern cvar_t       *vid_geometry;
@@ -58,3 +60,4 @@ bool VID_GetFullscreen(vrect_t *rc, int *freq_p, int *depth_p);
 bool VID_GetGeometry(vrect_t *rc);
 void VID_SetGeometry(const vrect_t *rc);
 void VID_ToggleFullscreen(void);
+void VID_SetTitle(const char *title);
