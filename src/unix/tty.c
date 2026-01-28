@@ -611,7 +611,12 @@ void Sys_RunConsole(void)
         return;
     }
 
-    Q_assert(!(tty_input->revents & POLLNVAL));
+    // Handle invalid file descriptor gracefully (e.g., when stdin is /dev/null)
+    if (tty_input->revents & POLLNVAL) {
+        Com_DPrintf("stdin is invalid, disabling console input.\n");
+        tty_kill_stdin();
+        return;
+    }
 
     if (!(tty_input->revents & (POLLIN | POLLERR | POLLHUP))) {
         return;

@@ -114,6 +114,8 @@ cvar_t  *sv_tick_rate;
 
 cvar_t  *g_features;
 
+cvar_t  *sv_proxy_mode;
+
 static bool     sv_registered;
 
 static const q2proto_protocol_t q2repro_accepted_protocols[] = {Q2P_PROTOCOL_Q2REPRO};
@@ -1450,6 +1452,28 @@ static void SV_PacketEvent(void)
         return;
     }
 
+    // Proxy mode: only accept localhost packets with PROXY_MAGIC header
+    if (sv_proxy_mode->integer) {
+        if (!NET_IsLanAddress(&net_from)) {
+            Com_DPrintf("Proxy mode: dropping non-localhost packet from %s\n",
+                        NET_AdrToString(&net_from));
+            return;
+        }
+
+        // Check for PROXY_MAGIC header (need at least 6 bytes: magic + cmd + slot)
+        if (msg_read.cursize >= 6) {
+            uint32_t magic = RL32(msg_read.data);
+            if (magic == PROXY_MAGIC) {
+                SV_HandleProxyPacket();
+                return;
+            }
+        }
+
+        // In proxy mode, reject non-proxy packets
+        Com_DPrintf("Proxy mode: dropping non-proxy packet\n");
+        return;
+    }
+
     // check for connectionless packet (0xffffffff) first
     // connectionless packets are processed even if the server is down
     if (*(int *)msg_read.data == -1) {
@@ -2209,6 +2233,8 @@ void SV_Init(void)
     sv_tick_rate = Cvar_Get("sv_tick_rate", "40", CVAR_LATCH);
 
     g_features = Cvar_Get("g_features", "0", CVAR_ROM);
+
+    sv_proxy_mode = Cvar_Get("sv_proxy_mode", "0", 0);
 
     init_rate_limits();
 

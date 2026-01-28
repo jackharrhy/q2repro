@@ -441,6 +441,9 @@ typedef struct {
     size_t (*Info_ValueForKey) (const char *s, const char *key, char *buffer, size_t buffer_len);
     bool (*Info_RemoveKey) (char *s, const char *key);
     bool (*Info_SetValueForKey) (char *s, const char *key, const char *value);
+
+    // NOTE(notscared) proxy mode transfer
+    void (*RequestTransfer)(const edict_t *player, const char *target_server);
 } game_import_t;
 
 //

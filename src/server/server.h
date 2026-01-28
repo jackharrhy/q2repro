@@ -57,6 +57,17 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 //=============================================================================
 
+// Proxy protocol constants
+#define PROXY_MAGIC             0x50524F58  // "PROX" in big-endian
+#define PROXY_CONNECT           1           // Create client slot
+#define PROXY_DISCONNECT        2           // Free client slot
+#define PROXY_TRANSFER          3           // Accept transferred player
+#define PROXY_GAMEDATA          4           // Forwarded game packet
+#define PROXY_SLOT_ASSIGNED     5           // Response: slot assigned
+#define PROXY_TRANSFER_REQUEST  6           // Backend -> Proxy: request transfer
+
+//=============================================================================
+
 #define SV_Malloc(size)         Z_TagMalloc(size, TAG_SERVER)
 #define SV_Mallocz(size)        Z_TagMallocz(size, TAG_SERVER)
 #define SV_CopyString(s)        Z_TagCopyString(s, TAG_SERVER)
@@ -370,6 +381,11 @@ typedef struct client_s {
     // misc
     time_t          connect_time; // time of initial connect
 
+    // proxy mode fields
+    bool            proxy_client;       // true if connected via proxy
+    netadr_t        proxy_real_addr;    // real client address (from proxy)
+    uint16_t        proxy_real_port;    // real client port
+
 #if USE_AC_SERVER
     bool            ac_valid;
     ac_query_t      ac_query_sent;
@@ -556,11 +572,14 @@ extern cvar_t       *sv_status_limit;
 extern cvar_t       *sv_status_show;
 extern cvar_t       *sv_auth_limit;
 extern cvar_t       *sv_rcon_limit;
+extern cvar_t       *sv_namechange_limit;
 extern cvar_t       *sv_uptime;
 
 extern cvar_t       *sv_allow_unconnected_cmds;
 
 extern cvar_t       *g_features;
+
+extern cvar_t       *sv_proxy_mode;
 
 extern cvar_t       *sv_timeout;
 extern cvar_t       *sv_zombietime;
@@ -598,6 +617,13 @@ void SV_zfree(voidpf opaque, voidpf address);
 
 void sv_sec_timeout_changed(cvar_t *self);
 void sv_min_timeout_changed(cvar_t *self);
+
+//
+// sv_proxy.c
+//
+void SV_HandleProxyPacket(void);
+void SV_ProxySendToClient(client_t *client, const void *data, size_t len);
+void SV_RequestTransfer(const edict_t *player, const char *target_server);
 
 //
 // sv_init.c

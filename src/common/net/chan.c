@@ -112,6 +112,16 @@ static void net_maxmsglen_changed(cvar_t *self)
     }
 }
 
+// Helper to send packet, using callback if set
+static inline void Netchan_SendPacket(netchan_t *chan, const void *data, size_t len)
+{
+    if (chan->send_fn) {
+        chan->send_fn(chan->send_opaque, data, len, &chan->remote_address);
+    } else {
+        NET_SendPacket(chan->sock, data, len, &chan->remote_address);
+    }
+}
+
 /*
 ===============
 Netchan_Init
@@ -246,7 +256,7 @@ static int NetchanOld_Transmit(netchan_t *chan, size_t length, const void *data,
 
     // send the datagram
     for (int i = 0; i < numpackets; i++) {
-        NET_SendPacket(chan->sock, send.data, send.cursize, &chan->remote_address);
+        Netchan_SendPacket(chan, send.data, send.cursize);
     }
 
     chan->outgoing_sequence++;
@@ -436,7 +446,7 @@ int Netchan_TransmitNextFragment(netchan_t *chan)
     }
 
     // send the datagram
-    NET_SendPacket(chan->sock, send.data, send.cursize, &chan->remote_address);
+    Netchan_SendPacket(chan, send.data, send.cursize);
 
     return send.cursize;
 }
@@ -530,7 +540,7 @@ static int NetchanNew_Transmit(netchan_t *chan, size_t length, const void *data,
 
     // send the datagram
     for (int i = 0; i < numpackets; i++) {
-        NET_SendPacket(chan->sock, send.data, send.cursize, &chan->remote_address);
+        Netchan_SendPacket(chan, send.data, send.cursize);
     }
 
     chan->outgoing_sequence++;

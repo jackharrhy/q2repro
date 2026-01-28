@@ -1001,6 +1001,8 @@ static const game_import_t game_import = {
     .Info_ValueForKey = PF_Info_ValueForKey,
     .Info_RemoveKey = Info_RemoveKey,
     .Info_SetValueForKey = Info_SetValueForKey,
+
+    .RequestTransfer = SV_RequestTransfer,
 };
 
 static const filesystem_api_v1_t filesystem_api_v1 = {

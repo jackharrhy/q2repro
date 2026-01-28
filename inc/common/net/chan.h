@@ -66,6 +66,11 @@ typedef struct {
 
     sizebuf_t   fragment_in;
     sizebuf_t   fragment_out;
+
+    // Optional callback for sending packets (used for proxy mode)
+    // If set, called instead of NET_SendPacket
+    void        (*send_fn)(void *opaque, const void *data, size_t len, const netadr_t *to);
+    void        *send_opaque;
 } netchan_t;
 
 extern cvar_t       *net_qport;
