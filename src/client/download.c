@@ -389,6 +389,41 @@ bool CL_CheckDownloadExtension(const char *ext)
     return false;
 }
 
+/* NOTE(notscared) Alternative texture format extensions to check before downloading.
+ * The image loader (images.c) tries these formats via r_texture_formats cvar,
+ * so we should check if any exist locally before requesting a download. */
+static const char *texture_alt_exts[] = { ".png", ".jpg", ".tga", NULL };
+
+// Check if an alternative texture format exists locally.
+// Takes a path with extension (e.g. "textures/foo.wal") and checks if
+// any alternative format (png/jpg/tga) exists at the same base path.
+static bool texture_alt_exists(const char *path)
+{
+    char buffer[MAX_QPATH];
+    const char *ext_start;
+    size_t baselen;
+
+    // Find the extension
+    ext_start = COM_FileExtension(path);
+    if (*ext_start != '.')
+        return false;
+
+    baselen = ext_start - path;
+    if (baselen >= sizeof(buffer))
+        return false;
+
+    // Check each alternative format
+    for (const char **ext = texture_alt_exts; *ext; ext++) {
+        memcpy(buffer, path, baselen);
+        if (Q_strlcpy(buffer + baselen, *ext, sizeof(buffer) - baselen) < sizeof(buffer) - baselen) {
+            if (FS_FileExists(buffer))
+                return true;
+        }
+    }
+
+    return false;
+}
+
 // attempts to start a download from the server if file doesn't exist.
 static int check_file_len(const char *path, size_t len, dltype_t type)
 {
@@ -447,6 +482,18 @@ static int check_file_len(const char *path, size_t len, dltype_t type)
 
 #define check_file(path, type) \
     check_file_len(path, strlen(path), type)
+
+// Check if texture file needs downloading - skips if alternative format exists locally.
+// Used for textures where the image loader will find png/jpg/tga alternatives.
+static int check_texture_file_len(const char *path, size_t len, dltype_t type)
+{
+    if (len < MAX_QPATH && texture_alt_exists(path))
+        return Q_ERR(EEXIST);
+    return check_file_len(path, len, type);
+}
+
+#define check_texture_file(path, type) \
+    check_texture_file_len(path, strlen(path), type)
 
 static void check_skins(const char *name)
 {
@@ -560,21 +607,21 @@ static void check_player(const char *name)
         check_file_len(fn, len, DL_OTHER);
     }
 
-    // default weapon skin
+    // default weapon skin - NOTE(notscared) use texture check for png/jpg/tga fallback
     len = Q_concat(fn, sizeof(fn), "players/", model, "/weapon.pcx");
-    check_file_len(fn, len, DL_OTHER);
+    check_texture_file_len(fn, len, DL_OTHER);
 
-    // skin
+    // skin - NOTE(notscared) use texture check for png/jpg/tga fallback
     len = Q_concat(fn, sizeof(fn), "players/", model, "/", skin, ".pcx");
-    check_file_len(fn, len, DL_OTHER);
+    check_texture_file_len(fn, len, DL_OTHER);
 
-    // skin_i
+    // skin_i - NOTE(notscared) use texture check for png/jpg/tga fallback
     len = Q_concat(fn, sizeof(fn), "players/", model, "/", skin, "_i.pcx");
-    check_file_len(fn, len, DL_OTHER);
+    check_texture_file_len(fn, len, DL_OTHER);
 
-    // dogtag
+    // dogtag - NOTE(notscared) use texture check for png/jpg/tga fallback
     len = Q_concat(fn, sizeof(fn), "tags/", dogtag, ".pcx");
-    check_file_len(fn, len, DL_OTHER);
+    check_texture_file_len(fn, len, DL_OTHER);
 
     // sexed sounds
     for (i = 0; i < precache_sexed_total; i++) {
@@ -711,6 +758,7 @@ void CL_RequestNextDownload(void)
             }
         }
 
+        /* NOTE(notscared) use texture check for png/jpg/tga fallback on pics */
         if (allow_download_pics->integer) {
             for (i = 1; i < cl.csr.max_images; i++) {
                 name = cl.configstrings[cl.csr.images + i];
@@ -719,12 +767,13 @@ void CL_RequestNextDownload(void)
                 }
                 if (name[0] == '/' || name[0] == '\\') {
                     len = Q_strlcpy(fn, name + 1, sizeof(fn));
+                    check_texture_file_len(fn, len, DL_OTHER);
                 } else if (cl.csr.extended && *COM_FileExtension(name) && strchr(name, '/')) {
                     continue;
                 } else {
                     len = Q_concat(fn, sizeof(fn), "pics/", name, ".pcx");
+                    check_texture_file_len(fn, len, DL_OTHER);
                 }
-                check_file_len(fn, len, DL_OTHER);
             }
         }
 
@@ -746,10 +795,11 @@ void CL_RequestNextDownload(void)
             }
         }
 
+        /* NOTE(notscared) use texture check for png/jpg/tga fallback on skybox */
         if (allow_download_textures->integer) {
             for (i = 0; i < 6; i++) {
                 len = Q_concat(fn, sizeof(fn), "env/", cl.configstrings[CS_SKY], com_env_suf[i], ".tga");
-                check_file_len(fn, len, DL_OTHER);
+                check_texture_file_len(fn, len, DL_OTHER);
             }
         }
 
@@ -766,12 +816,13 @@ void CL_RequestNextDownload(void)
         // load the map file before checking textures
         CL_RegisterBspModels();
 
+        /* NOTE(notscared) use texture check for png/jpg/tga fallback on wall textures */
         if (allow_download_textures->integer) {
             for (i = 0; i < cl.bsp->numtexinfo; i++) {
                 if (cl.bsp->texinfo[i].c.flags & SURF_NODRAW && cl.bsp->has_bspx)
                     continue;
                 len = Q_concat(fn, sizeof(fn), "textures/", cl.bsp->texinfo[i].name, ".wal");
-                check_file_len(fn, len, DL_OTHER);
+                check_texture_file_len(fn, len, DL_OTHER);
             }
         }
 
