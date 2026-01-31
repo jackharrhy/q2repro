@@ -469,6 +469,20 @@ if openal.found()
   config.set10('USE_OPENAL', true)
 endif
 
+# NOTE(notscared) Voice chat support using Opus codec
+opus = dependency('opus',
+  version:         '>= 1.4',
+  required:        get_option('voip'),
+  default_options: fallback_opt,
+)
+if opus.found() and openal.found()
+  client_src += [ 'src/client/voice.c', 'inc/client/voice.h' ]
+  common_src += [ 'src/server/sv_voice.c', 'inc/server/sv_voice.h' ]
+  server_src += [ 'src/server/sv_voice.c', 'inc/server/sv_voice.h' ]
+  client_deps += opus
+  config.set10('USE_VOIP', true)
+endif
+
 # require FFmpeg >= 5.1.3
 ffmpeg_defaults = [
   'tests=disabled',
@@ -768,6 +782,7 @@ summary({
   'tests'              : config.get('USE_TESTS', 0) != 0,
   'tga'                : config.get('USE_TGA', 0) != 0,
   'variable-fps'       : config.get('USE_FPS', 0) != 0,
+  'voip'               : config.get('USE_VOIP', 0) != 0,
   'wayland'            : config.get('USE_WAYLAND', 0) != 0,
   'windows-crash-dumps': config.get('USE_DBGHELP', 0) != 0,
   'windows-egl'        : config.get('USE_WIN32EGL', 0) != 0,

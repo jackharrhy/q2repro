@@ -193,6 +193,9 @@ typedef enum {
     svc_q2pro_configstringstream,
     svc_q2pro_baselinestream,
 
+    // NOTE(notscared) Voice chat
+    svc_voice = 50,                 // [byte sender] [byte volume] [int8 pan] [byte frame_count] [lengths...] [data...]
+
     svc_num_types
 } svc_ops_t;
 
@@ -250,7 +253,10 @@ typedef enum {
     // Q2PRO specific operations
     clc_move_nodelta = 10,
     clc_move_batched,
-    clc_userinfo_delta
+    clc_userinfo_delta,
+
+    // NOTE(notscared) Voice chat
+    clc_voice = 16                  // [byte frame_count] [lengths...] [data...]
 } clc_ops_t;
 
 //==============================================

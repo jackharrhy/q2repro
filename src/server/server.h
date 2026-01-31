@@ -623,6 +623,7 @@ void sv_min_timeout_changed(cvar_t *self);
 //
 void SV_HandleProxyPacket(void);
 void SV_ProxySendToClient(client_t *client, const void *data, size_t len);
+void SV_ProxyNotifyDisconnect(client_t *client);  /* NOTE(notscared) notify proxy on client disconnect */
 void SV_RequestTransfer(const edict_t *player, const char *target_server);
 
 //

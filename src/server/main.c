@@ -23,6 +23,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #endif
 #include "server/nav.h"
 #include "q2proto/q2proto.h"
+#if USE_VOIP
+#include "server/sv_voice.h"
+#endif
 
 master_t    sv_masters[MAX_MASTERS];   // address of group servers
 
@@ -236,6 +239,9 @@ void SV_DropClient(client_t *client, const char *reason)
     // print the reason
     if (reason)
         print_drop_reason(client, reason, oldstate);
+
+    /* NOTE(notscared) Notify proxy if this is a proxy client */
+    SV_ProxyNotifyDisconnect(client);
 
     // add the disconnect
     q2proto_svc_message_t message = {.type = Q2P_SVC_DISCONNECT};
@@ -2250,6 +2256,11 @@ void SV_Init(void)
 
     Nav_Init();
 
+#if USE_VOIP
+    /* NOTE(notscared) Initialize server voice chat */
+    SV_Voice_Init();
+#endif
+
 #if USE_SYSCON
     SV_SetConsoleTitle();
 #endif
@@ -2343,6 +2354,11 @@ void SV_Shutdown(const char *finalmsg, error_type_t type)
     AC_Disconnect();
 
     SV_MvdShutdown(type);
+
+#if USE_VOIP
+    /* NOTE(notscared) Shutdown server voice chat */
+    SV_Voice_Shutdown();
+#endif
 
     SV_FinalMessage(finalmsg, type);
     SV_MasterShutdown();

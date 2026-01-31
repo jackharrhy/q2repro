@@ -20,6 +20,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "client.h"
 
 #include "q2proto/q2proto.h"
+#if USE_VOIP
+#include "client/voice.h"
+#endif
 
 cvar_t  *rcon_address;
 
@@ -1456,6 +1459,63 @@ static void CL_ConnectionlessPacket(void)
     Com_DPrintf("Unknown connectionless packet command.\n");
 }
 
+#if USE_VOIP
+/*
+=================
+CL_ParseVoicePacket
+
+Parse incoming voice data from server.
+Format: 0xFFFFFFFF + "voip" + sender(1) + volume(1) + pan(1) + frame_count(1) + lens(N) + data
+=================
+*/
+static void CL_ParseVoicePacket(void)
+{
+    /* Skip header: 4 bytes of -1 + 4 bytes of "voip" */
+    if (msg_read.cursize < 12) {
+        Com_DPrintf("CL_ParseVoicePacket: packet too small\n");
+        return;
+    }
+
+    int offset = 8;  /* Skip header */
+
+    int sender = msg_read.data[offset++];
+    int volume = msg_read.data[offset++];
+    int8_t pan = (int8_t)msg_read.data[offset++];
+    int frame_count = msg_read.data[offset++];
+
+    if (frame_count <= 0 || frame_count > 6) {
+        Com_DPrintf("CL_ParseVoicePacket: invalid frame_count %d\n", frame_count);
+        return;
+    }
+
+    /* Read frame lengths */
+    uint8_t frame_lens[6];
+    int total_data_len = 0;
+    for (int i = 0; i < frame_count; i++) {
+        if (offset >= msg_read.cursize) {
+            Com_DPrintf("CL_ParseVoicePacket: truncated frame lengths\n");
+            return;
+        }
+        frame_lens[i] = msg_read.data[offset++];
+        total_data_len += frame_lens[i];
+    }
+
+    /* Check we have all the data */
+    if (offset + total_data_len > msg_read.cursize) {
+        Com_DPrintf("CL_ParseVoicePacket: truncated opus data\n");
+        return;
+    }
+
+    /* Pass to voice subsystem for playback */
+    Voice_ReceiveFrom(sender, (uint8_t)volume, pan,
+                      msg_read.data + offset, total_data_len,
+                      frame_lens, frame_count);
+
+    Com_DDPrintf("CL_ParseVoicePacket: received %d frames from client %d (vol=%d pan=%d)\n",
+                 frame_count, sender, volume, pan);
+}
+#endif
+
 /*
 =================
 CL_PacketEvent
@@ -1471,6 +1531,15 @@ static void CL_PacketEvent(void)
     // remote command packet
     //
     if (*(int *)msg_read.data == -1) {
+#if USE_VOIP
+        /* NOTE(notscared) Check for voice packet: 0xFFFFFFFF + "voip" */
+        if (msg_read.cursize >= 8 && 
+            msg_read.data[4] == 'v' && msg_read.data[5] == 'o' &&
+            msg_read.data[6] == 'i' && msg_read.data[7] == 'p') {
+            CL_ParseVoicePacket();
+            return;
+        }
+#endif
         CL_ConnectionlessPacket();
         return;
     }

@@ -18,6 +18,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // sv_user.c -- server code for moving users
 
 #include "server.h"
+#if USE_VOIP
+#include "server/sv_voice.h"
+#endif
 
 #define MSG_GAMESTATE   (MSG_RELIABLE | MSG_CLEAR)
 
@@ -1450,10 +1453,30 @@ void SV_ExecuteClientMessage(client_t *client)
             break;
         }
 
+#if USE_VOIP
+        /* NOTE(notscared) Check for voice data before q2proto parsing.
+         * Voice uses clc_voice (16) which q2proto doesn't recognize. */
+        if (SV_Voice_CheckRemaining()) {
+            SV_Voice_ParseClient(client);
+            continue;
+        }
+#endif
+
         q2proto_clc_message_t message;
         q2proto_error_t err = q2proto_server_read(&client->q2proto_ctx, Q2PROTO_IOARG_SERVER_READ, &message);
         if (err == Q2P_ERR_NO_MORE_INPUT)
             break;
+
+#if USE_VOIP
+        /* NOTE(notscared) If q2proto returns bad command, check if it's voice data */
+        if (err == Q2P_ERR_BAD_COMMAND) {
+            if (SV_Voice_CheckRemaining()) {
+                SV_Voice_ParseClient(client);
+                continue;
+            }
+            /* Not voice - fall through to drop client */
+        }
+#endif
 
         // Handle batched userinfo deltas
         if (message.type != Q2P_CLC_USERINFO_DELTA && prevUserinfoUpdateCount != userinfoUpdateCount) {

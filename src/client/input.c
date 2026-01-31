@@ -19,6 +19,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "client.h"
 #include "common/crc.h"
+#if USE_VOIP
+#include "client/voice.h"
+#endif
 
 static cvar_t    *cl_nodelta;
 static cvar_t    *cl_maxpackets;
@@ -1073,6 +1076,11 @@ static void CL_SendDefaultCmd(void)
 
     P_FRAMES++;
 
+#if USE_VOIP
+    /* NOTE(notscared) Append voice data to packet if available */
+    Voice_WritePacket();
+#endif
+
     //
     // deliver the message
     //
@@ -1159,6 +1167,11 @@ static void CL_SendBatchedCmd(void)
     q2proto_client_write(&cls.q2proto_ctx, Q2PROTO_IOARG_CLIENT_WRITE, &move_message);
 
     P_FRAMES++;
+
+#if USE_VOIP
+    /* NOTE(notscared) Append voice data to packet if available */
+    Voice_WritePacket();
+#endif
 
     //
     // deliver the message

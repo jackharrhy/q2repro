@@ -22,6 +22,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "shared/m_flash.h"
 #include "shared/game3_shared.h"
 #include "common/loc.h"
+#if USE_VOIP
+#include "client/voice.h"
+#include "common/protocol.h"
+#endif
 
 /*
 =====================================================================
@@ -1199,6 +1203,31 @@ static void set_server_fps(int value)
 }
 #endif
 
+#if USE_VOIP
+/*
+=====================
+CL_Voice_CheckRemaining
+
+Check if there's voice data remaining in the message buffer
+=====================
+*/
+static bool CL_Voice_CheckRemaining(void)
+{
+    if (msg_read.readcount >= msg_read.cursize)
+        return false;
+
+    /* Peek at the next byte without consuming it */
+    uint8_t cmd = msg_read.data[msg_read.readcount];
+    
+    if (cmd == svc_voice) {
+        Com_DPrintf("CL_Voice: found svc_voice at offset %u (size %u)\n", 
+                    msg_read.readcount, msg_read.cursize);
+        return true;
+    }
+    return false;
+}
+#endif
+
 /*
 =====================
 CL_ParseServerMessage
@@ -1224,12 +1253,32 @@ void CL_ParseServerMessage(void)
     while (1) {
         readcount = msg_read.readcount;
 
+#if USE_VOIP
+        /* NOTE(notscared) Check for voice data before q2proto parsing.
+         * Voice uses svc_voice (50) which q2proto doesn't recognize. */
+        if (CL_Voice_CheckRemaining()) {
+            Voice_ParseServerPacket();
+            continue;
+        }
+#endif
+
         q2proto_svc_message_t svc_msg;
         q2proto_error_t err = q2proto_client_read(&cls.q2proto_ctx, Q2PROTO_IOARG_CLIENT_READ, &svc_msg);
         if (err == Q2P_ERR_NO_MORE_INPUT) {
             SHOWNET(2, "%3u:END OF MESSAGE\n", readcount);
             break;
         }
+
+#if USE_VOIP
+        /* NOTE(notscared) If q2proto returns bad command, check if it's voice data */
+        if (err == Q2P_ERR_BAD_COMMAND) {
+            if (CL_Voice_CheckRemaining()) {
+                Voice_ParseServerPacket();
+                continue;
+            }
+            /* Not voice - fall through to error */
+        }
+#endif
 
         switch(svc_msg.type)
         {

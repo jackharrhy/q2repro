@@ -19,6 +19,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "sound.h"
 
+#if USE_VOIP
+#include "client/voice.h"
+#endif
+
 // =======================================================================
 // Internal sound data & structures
 // =======================================================================
@@ -166,6 +170,10 @@ void S_Init(void)
     if (s_started == SS_NOT && s_enable->integer >= SS_OAL && snd_openal.init()) {
         s_started = SS_OAL;
         s_api = &snd_openal;
+#if USE_VOIP
+        /* NOTE(notscared) Initialize voice chat after OpenAL is ready */
+        Voice_Init();
+#endif
     }
 #endif
 
@@ -237,6 +245,11 @@ void S_Shutdown(void)
 {
     if (!s_started)
         return;
+
+#if USE_VOIP
+    /* NOTE(notscared) Shutdown voice chat before OpenAL */
+    Voice_Shutdown();
+#endif
 
     S_StopAllSounds();
     S_FreeAllSounds();
@@ -927,6 +940,11 @@ void S_Update(void)
     }
 
     OGG_Update();
+
+#if USE_VOIP
+    /* NOTE(notscared) Process microphone input for voice chat */
+    Voice_Capture();
+#endif
 
     s_api->update();
 }

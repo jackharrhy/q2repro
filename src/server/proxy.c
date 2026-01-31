@@ -181,6 +181,10 @@ static void SV_ProxyConnect(void)
     SV_InitClientSend(newcl);
     List_Append(&sv_clientlist, &newcl->entry);
 
+    // Set version string so client passes the version probe check in SV_Begin_f
+    // Without this, clients would be dropped with "failed version probe"
+    newcl->version_string = SV_CopyString("proxy-client");
+
     Com_Printf("Proxy client %d connected: %s\n", number, newcl->name);
     send_slot_assigned(number);
 }
@@ -426,6 +430,28 @@ static void send_slot_assigned(int slot)
     buffer[4] = PROXY_SLOT_ASSIGNED;
     buffer[5] = (byte)slot;
     NET_SendPacket(NS_SERVER, buffer, 6, &net_from);
+}
+
+/*
+==================
+SV_ProxyNotifyDisconnect
+
+NOTE(notscared) Notify proxy that a client has disconnected.
+Called from SV_DropClient when a proxy client is dropped.
+==================
+*/
+void SV_ProxyNotifyDisconnect(client_t *client)
+{
+    if (!client->proxy_client)
+        return;
+
+    byte buffer[8];
+    WL32(buffer, PROXY_MAGIC);
+    buffer[4] = PROXY_DISCONNECT;
+    buffer[5] = (byte)client->number;
+    NET_SendPacket(NS_SERVER, buffer, 6, &client->netchan.remote_address);
+
+    Com_DPrintf("Sent PROXY_DISCONNECT for slot %d\n", client->number);
 }
 
 /*
