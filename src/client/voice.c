@@ -77,7 +77,8 @@ static int64_t voice_last_frame_time;
 static bool loopback_enabled;
 static ALuint loopback_source;
 static ALuint loopback_buffers[4];
-static int loopback_buf_index;
+static ALuint loopback_free_stack[4];   /* Stack of available buffer IDs */
+static int loopback_free_count;
 
 /* ========================================================================= */
 /* Network transmission queue                                                */
@@ -100,9 +101,9 @@ static int voice_queue_count;
 typedef struct {
     bool active;
     ALuint source;
-    ALuint buffers[8];          /* Ring buffer of OpenAL buffers */
-    int buf_write_index;
-    int buf_read_index;
+    ALuint buffers[8];          /* Pool of OpenAL buffers */
+    ALuint free_stack[8];       /* Stack of available buffer IDs */
+    int free_count;             /* Number of buffers in free_stack */
     OpusDecoder *decoder;       /* Separate decoder per client */
     int64_t last_recv_time;
 } voice_client_t;
@@ -195,18 +196,24 @@ static void Voice_PlayLoopback(const int16_t *pcm, int samples)
     if (!loopback_enabled || !loopback_source)
         return;
 
-    /* Unqueue any finished buffers */
+    /* Reclaim processed buffers to free stack */
     ALint processed = 0;
     alGetSourcei(loopback_source, AL_BUFFERS_PROCESSED, &processed);
-    while (processed > 0) {
+    while (processed > 0 && loopback_free_count < 4) {
         ALuint buf;
         alSourceUnqueueBuffers(loopback_source, 1, &buf);
+        loopback_free_stack[loopback_free_count++] = buf;
         processed--;
     }
 
-    /* Queue new buffer with captured audio */
-    ALuint buf = loopback_buffers[loopback_buf_index];
-    loopback_buf_index = (loopback_buf_index + 1) % 4;
+    /* Check if we have a free buffer */
+    if (loopback_free_count == 0) {
+        /* All buffers in use, drop this frame */
+        return;
+    }
+
+    /* Pop a buffer from the free stack */
+    ALuint buf = loopback_free_stack[--loopback_free_count];
 
     alBufferData(buf, AL_FORMAT_MONO16, pcm, samples * sizeof(int16_t), 
                  VOICE_SAMPLE_RATE);
@@ -234,6 +241,11 @@ void Voice_Loopback(bool enable)
             alSourcei(loopback_source, AL_SOURCE_RELATIVE, AL_TRUE);
             alSource3f(loopback_source, AL_POSITION, 0, 0, 0);
         }
+        /* Initialize free stack with all buffers */
+        for (int i = 0; i < 4; i++) {
+            loopback_free_stack[i] = loopback_buffers[i];
+        }
+        loopback_free_count = 4;
         Com_Printf("Voice loopback enabled - you will hear yourself\n");
     } else {
         if (loopback_source) {
@@ -247,6 +259,7 @@ void Voice_Loopback(bool enable)
                 queued--;
             }
         }
+        loopback_free_count = 0;
         Com_Printf("Voice loopback disabled\n");
     }
 }
@@ -442,12 +455,16 @@ static voice_client_t *Voice_GetClient(int sender)
     if (!vc->active) {
         /* Initialize new voice client */
         vc->active = true;
-        vc->buf_write_index = 0;
-        vc->buf_read_index = 0;
 
-        /* Create OpenAL source */
+        /* Create OpenAL source and buffers */
         alGenSources(1, &vc->source);
         alGenBuffers(8, vc->buffers);
+
+        /* Initialize free buffer stack - all buffers start as free */
+        for (int i = 0; i < 8; i++) {
+            vc->free_stack[i] = vc->buffers[i];
+        }
+        vc->free_count = 8;
 
         /* Configure source for stereo panning (relative to listener) */
         alSourcef(vc->source, AL_GAIN, 1.0f);
@@ -486,6 +503,14 @@ static q_unused void Voice_CleanupClients(void)
         if (now - vc->last_recv_time > 5000) {
             if (vc->source) {
                 alSourceStop(vc->source);
+                /* Unqueue any remaining buffers before deleting */
+                ALint queued = 0;
+                alGetSourcei(vc->source, AL_BUFFERS_QUEUED, &queued);
+                while (queued > 0) {
+                    ALuint buf;
+                    alSourceUnqueueBuffers(vc->source, 1, &buf);
+                    queued--;
+                }
                 alDeleteSources(1, &vc->source);
                 alDeleteBuffers(8, vc->buffers);
                 vc->source = 0;
@@ -494,6 +519,7 @@ static q_unused void Voice_CleanupClients(void)
                 opus_decoder_destroy(vc->decoder);
                 vc->decoder = NULL;
             }
+            vc->free_count = 0;
             vc->active = false;
             Com_DPrintf("Voice: cleaned up client %d\n", i);
         }
@@ -512,10 +538,36 @@ void Voice_ReceiveFrom(int sender, uint8_t volume, int8_t pan,
     if (!vc || !vc->decoder)
         return;
 
+    /* NOTE(notscared) First, reclaim ALL processed buffers back to the free stack.
+     * This must happen before we try to queue new buffers, otherwise we might
+     * try to use buffers that are still attached to the source (which causes
+     * OpenAL errors and audio glitches like stuttering/replay on window resize).
+     */
+    ALint processed = 0;
+    alGetSourcei(vc->source, AL_BUFFERS_PROCESSED, &processed);
+    while (processed > 0 && vc->free_count < 8) {
+        ALuint buf;
+        alSourceUnqueueBuffers(vc->source, 1, &buf);
+        vc->free_stack[vc->free_count++] = buf;
+        processed--;
+    }
+
     /* Decode each frame and queue for playback */
     const uint8_t *data_ptr = opus_data;
     for (int i = 0; i < frame_count; i++) {
         int frame_len = frame_lens[i];
+
+        /* Check if we have a free buffer available */
+        if (vc->free_count == 0) {
+            /* All buffers are queued and playing - drop this frame.
+             * This can happen during a burst of packets (e.g. after window resize)
+             * when more audio arrives than we can buffer. Dropping is preferable
+             * to corrupting audio by writing to in-use buffers.
+             */
+            Com_DPrintf("Voice: buffer overflow for client %d, dropping frame\n", sender);
+            data_ptr += frame_len;
+            continue;
+        }
 
         /* Decode to PCM */
         int16_t pcm[VOICE_FRAME_SAMPLES];
@@ -533,38 +585,34 @@ void Voice_ReceiveFrom(int sender, uint8_t volume, int8_t pan,
             pcm[j] = (int16_t)(pcm[j] * vol);
         }
 
-        /* Unqueue finished buffers */
-        ALint processed = 0;
-        alGetSourcei(vc->source, AL_BUFFERS_PROCESSED, &processed);
-        while (processed > 0) {
-            ALuint buf;
-            alSourceUnqueueBuffers(vc->source, 1, &buf);
-            processed--;
-        }
+        /* Pop a buffer from the free stack */
+        ALuint buf = vc->free_stack[--vc->free_count];
 
-        /* Queue new buffer */
-        ALuint buf = vc->buffers[vc->buf_write_index];
-        vc->buf_write_index = (vc->buf_write_index + 1) % 8;
-
+        /* Fill and queue the buffer */
         alBufferData(buf, AL_FORMAT_MONO16, pcm, samples * sizeof(int16_t),
                      VOICE_SAMPLE_RATE);
         alSourceQueueBuffers(vc->source, 1, &buf);
 
-        /* NOTE(notscared) Apply pan from server for stereo positioning.
-         * Pan is -128 (left) to +127 (right).
-         * Position source in listener-relative coordinates:
-         * X = left/right, Y = up/down, Z = front/back (negative = in front)
-         */
-        float pan_normalized = (float)pan / 127.0f;
-        alSource3f(vc->source, AL_POSITION, pan_normalized, 0.0f, -1.0f);
-
-        /* Start playing if not already */
-        ALint state;
-        alGetSourcei(vc->source, AL_SOURCE_STATE, &state);
-        if (state != AL_PLAYING)
-            alSourcePlay(vc->source);
-
         data_ptr += frame_len;
+    }
+
+    /* NOTE(notscared) Apply pan from server for stereo positioning.
+     * Pan is -128 (left) to +127 (right).
+     * Position source in listener-relative coordinates:
+     * X = left/right, Y = up/down, Z = front/back (negative = in front)
+     * Only set once per packet, not per frame.
+     */
+    float pan_normalized = (float)pan / 127.0f;
+    alSource3f(vc->source, AL_POSITION, pan_normalized, 0.0f, -1.0f);
+
+    /* Start playing if not already and we have queued buffers */
+    ALint state;
+    alGetSourcei(vc->source, AL_SOURCE_STATE, &state);
+    if (state != AL_PLAYING) {
+        ALint queued = 0;
+        alGetSourcei(vc->source, AL_BUFFERS_QUEUED, &queued);
+        if (queued > 0)
+            alSourcePlay(vc->source);
     }
 }
 
@@ -728,10 +776,20 @@ void Voice_Shutdown(void)
 
     /* Clean up loopback */
     if (loopback_source) {
+        alSourceStop(loopback_source);
+        /* Unqueue all buffers before deleting */
+        ALint queued;
+        alGetSourcei(loopback_source, AL_BUFFERS_QUEUED, &queued);
+        while (queued > 0) {
+            ALuint buf;
+            alSourceUnqueueBuffers(loopback_source, 1, &buf);
+            queued--;
+        }
         alDeleteSources(1, &loopback_source);
         alDeleteBuffers(4, loopback_buffers);
         loopback_source = 0;
         memset(loopback_buffers, 0, sizeof(loopback_buffers));
+        loopback_free_count = 0;
     }
 
     /* Clean up remote voice clients */
@@ -742,6 +800,14 @@ void Voice_Shutdown(void)
 
         if (vc->source) {
             alSourceStop(vc->source);
+            /* Unqueue any remaining buffers before deleting */
+            ALint queued = 0;
+            alGetSourcei(vc->source, AL_BUFFERS_QUEUED, &queued);
+            while (queued > 0) {
+                ALuint buf;
+                alSourceUnqueueBuffers(vc->source, 1, &buf);
+                queued--;
+            }
             alDeleteSources(1, &vc->source);
             alDeleteBuffers(8, vc->buffers);
         }
