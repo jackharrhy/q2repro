@@ -18,6 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "gl.h"
+#include "common/precache_log.h"
 #include "format/md2.h"
 #if USE_MD3
 #include "format/md3.h"
@@ -752,6 +753,8 @@ static void MOD_PrintError(const char *path, int err)
         msg = Com_GetLastError();
         break;
     case Q_ERR(ENOENT):
+        // NOTE(notscared) log precache miss for missing models
+        PrecacheLog_Miss("model", path);
         if (COM_DEVELOPER < 2)
             return;
         level = PRINT_DEVELOPER;

@@ -19,6 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "sound.h"
 #include "common/intreadwrite.h"
+#include "common/precache_log.h"
 
 #define FORMAT_PCM  1
 
@@ -499,7 +500,10 @@ sfxcache_t *S_LoadSound(sfx_t *s)
 
     len = FS_LoadFile(name, (void **)&data);
     if (!data) {
-        if (len != Q_ERR(ENOENT))
+        // NOTE(notscared) log precache miss for missing sounds
+        if (len == Q_ERR(ENOENT))
+            PrecacheLog_Miss("sound", name);
+        else
             Com_EPrintf("Couldn't load %s: %s\n", Com_MakePrintable(name), Q_ErrorString(len));
         s->error = len;
         return NULL;

@@ -43,6 +43,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/tests.h"
 #include "common/utils.h"
 #include "common/zone.h"
+#include "common/precache_log.h"
 
 #include "client/client.h"
 #include "server/server.h"
@@ -636,6 +637,7 @@ void Com_Quit(const char *reason, error_type_t type)
     CL_Shutdown();
     NET_Shutdown();
     Sys_SaveHistory();
+    PrecacheLog_Shutdown(); // NOTE(notscared) shutdown precache miss logging
     logfile_close();
     FS_Shutdown();
     Com_ShutdownAsyncWork();
@@ -995,6 +997,9 @@ void Qcommon_Init(int argc, char **argv)
 
     // no longer allow CVAR_NOSET modifications
     com_initialized = true;
+
+    // NOTE(notscared) init precache miss logging after FS
+    PrecacheLog_Init();
 
     // after FS is initialized, open logfile
     logfile_enable->changed = logfile_enable_changed;

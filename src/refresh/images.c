@@ -27,6 +27,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/cvar.h"
 #include "common/files.h"
 #include "common/intreadwrite.h"
+#include "common/precache_log.h"
 #include "common/sizebuf.h"
 #include "system/system.h"
 #include "format/pcx.h"
@@ -1796,9 +1797,13 @@ static void print_error(const char *name, imageflags_t flags, int err)
         msg = Com_GetLastError();
         break;
     case Q_ERR(ENOENT):
+        // NOTE(notscared) log precache miss for missing images
+        // flags == -1 means speculative load (glow maps, etc) - don't log those
         if (flags == -1) {
             return;
-        } else if ((flags & (IF_PERMANENT | IF_OPTIONAL)) == IF_PERMANENT) {
+        }
+        PrecacheLog_Miss("image", name);
+        if ((flags & (IF_PERMANENT | IF_OPTIONAL)) == IF_PERMANENT) {
             // ugly hack for console code
             if (strcmp(name, "pics/conchars.pcx"))
                 level = PRINT_WARNING;
