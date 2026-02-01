@@ -168,8 +168,8 @@ option('vid-modelist',
 
 option('voip',
   type: 'feature',
-  value: 'auto',
-  description: 'Voice chat support using Opus codec (requires OpenAL)')
+  value: 'enabled',
+  description: 'Voice chat support using Opus codec (REQUIRED for notscared, requires OpenAL)')
 
 option('wayland',
   type: 'feature',

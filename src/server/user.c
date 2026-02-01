@@ -1478,6 +1478,12 @@ void SV_ExecuteClientMessage(client_t *client)
         }
 #endif
 
+        /* NOTE(notscared) Handle protocol errors - drop client with descriptive message */
+        if (err != Q2P_ERR_SUCCESS) {
+            SV_DropClient(client, "protocol error (bad command)");
+            break;
+        }
+
         // Handle batched userinfo deltas
         if (message.type != Q2P_CLC_USERINFO_DELTA && prevUserinfoUpdateCount != userinfoUpdateCount) {
             SV_UpdateUserinfo();

@@ -469,19 +469,20 @@ if openal.found()
   config.set10('USE_OPENAL', true)
 endif
 
-# NOTE(notscared) Voice chat support using Opus codec
+# NOTE(notscared) Voice chat support using Opus codec - REQUIRED for notscared
 opus = dependency('opus',
   version:         '>= 1.4',
-  required:        get_option('voip'),
+  required:        true,
   default_options: fallback_opt,
 )
-if opus.found() and openal.found()
-  client_src += [ 'src/client/voice.c', 'inc/client/voice.h' ]
-  common_src += [ 'src/server/sv_voice.c', 'inc/server/sv_voice.h' ]
-  server_src += [ 'src/server/sv_voice.c', 'inc/server/sv_voice.h' ]
-  client_deps += opus
-  config.set10('USE_VOIP', true)
+if not openal.found()
+  error('OpenAL is required for voice chat support. Install libopenal-dev or enable OpenAL fallback.')
 endif
+client_src += [ 'src/client/voice.c', 'inc/client/voice.h' ]
+common_src += [ 'src/server/sv_voice.c', 'inc/server/sv_voice.h' ]
+server_src += [ 'src/server/sv_voice.c', 'inc/server/sv_voice.h' ]
+client_deps += opus
+config.set10('USE_VOIP', true)
 
 # require FFmpeg >= 5.1.3
 ffmpeg_defaults = [
