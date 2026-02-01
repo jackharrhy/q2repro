@@ -56,6 +56,7 @@ typedef struct mtexinfo_s {  // used internally due to name len probs //ZOID
     struct image_s      *image; // used for texturing
     struct mtexinfo_s   *next; // used for animation
     int                 numframes;
+    float               animation_fps; // NOTE(notscared) frames per second for animation (0 = default 2fps)
 #endif
 #if USE_CLIENT
     int                 step_id;

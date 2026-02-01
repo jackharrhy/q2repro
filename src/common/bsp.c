@@ -725,10 +725,50 @@ static void BSP_ParseFaceNormals(bsp_t *bsp, const byte *in, size_t filelen)
     }
 }
 
+// NOTE(notscared) Parse ANIMTIMING BSPX lump for variable framerate textures
+static void BSP_ParseAnimTiming(bsp_t *bsp, const byte *in, size_t filelen)
+{
+    if (filelen < sizeof(int32_t)) {
+        Com_WPrintf("Bad ANIMTIMING lump: too small\n");
+        return;
+    }
+
+    int32_t count;
+    memcpy(&count, in, sizeof(int32_t));
+
+    size_t expected_size = sizeof(int32_t) + count * (sizeof(int32_t) + sizeof(float));
+    if (filelen < expected_size) {
+        Com_WPrintf("Bad ANIMTIMING lump: expected %zu bytes, got %zu\n", expected_size, filelen);
+        return;
+    }
+
+    const byte *ptr = in + sizeof(int32_t);
+
+    for (int32_t i = 0; i < count; i++) {
+        int32_t texinfo_index;
+        float fps;
+
+        memcpy(&texinfo_index, ptr, sizeof(int32_t));
+        ptr += sizeof(int32_t);
+        memcpy(&fps, ptr, sizeof(float));
+        ptr += sizeof(float);
+
+        if (texinfo_index < 0 || texinfo_index >= bsp->numtexinfo) {
+            Com_WPrintf("ANIMTIMING: invalid texinfo index %d\n", texinfo_index);
+            continue;
+        }
+
+        bsp->texinfo[texinfo_index].animation_fps = fps;
+    }
+
+    Com_DPrintf("Loaded ANIMTIMING BSPX lump: %d entries\n", count);
+}
+
 static const xlump_info_t bspx_lumps[] = {
     { "DECOUPLED_LM", BSP_ParseDecoupledLM },
     { "LIGHTGRID_OCTREE", BSP_ParseLightgrid, BSP_ParseLightgridHeader },
-    { "FACENORMALS", BSP_ParseFaceNormals }
+    { "FACENORMALS", BSP_ParseFaceNormals },
+    { "ANIMTIMING", BSP_ParseAnimTiming } // NOTE(notscared) variable framerate textures
 };
 
 // returns amount of extra space to allocate

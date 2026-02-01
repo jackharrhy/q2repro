@@ -122,6 +122,7 @@ BSP_LOAD(Texinfo)
         } else {
             out->next = NULL;
         }
+        out->animation_fps = 0.0f; // NOTE(notscared) Initialize to 0, may be overwritten by ANIMTIMING BSPX lump
 #else
         in += 4;
 #endif

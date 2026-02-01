@@ -732,7 +732,9 @@ static int GL_CopyVerts(const mface_t *surf)
 static const image_t *GL_TextureAnimation(const mtexinfo_t *tex)
 {
     if (q_unlikely(tex->next)) {
-        int c = glr.ent->frame % tex->numframes;
+        // NOTE(notscared) Use per-texture fps if available, otherwise default to 2 FPS
+        float fps = tex->animation_fps > 0.0f ? tex->animation_fps : 2.0f;
+        int c = (int)(glr.fd.time * fps) % tex->numframes;
         while (c--)
             tex = tex->next;
     }
